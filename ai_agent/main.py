@@ -2,40 +2,59 @@ import os
 import argparse
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
-# Load environment variables
-load_dotenv()
 
-api_key = os.environ.get("GEMINI_API_KEY")
-if api_key is None:
-    raise RuntimeError("GEMINI_API_KEY not found. Please set it in a .env file.")
+def main():
+    # Load environment variables
+    load_dotenv()
 
-# --- Argument parsing ---
-parser = argparse.ArgumentParser(description="Chatbot")
-parser.add_argument("user_prompt", type=str, help="User prompt")
-args = parser.parse_args()
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key is None:
+        raise RuntimeError("GEMINI_API_KEY not found. Please set it in a .env file.")
 
-# Create Gemini client
-client = genai.Client(api_key=api_key)
+    # --- Argument parsing ---
+    parser = argparse.ArgumentParser(description="Chatbot")
+    parser.add_argument("user_prompt", type=str, help="User prompt")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    args = parser.parse_args()
 
-# Call Gemini with user-provided prompt
-response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents=args.user_prompt,
-)
+    # Create Gemini client
+    client = genai.Client(api_key=api_key)
 
-# --- Token usage ---
-usage = response.usage_metadata
-if usage is None:
-    raise RuntimeError("No usage_metadata on response. The API request may have failed.")
+    # Build messages list
+    messages = [
+        types.Content(
+            role="user",
+            parts=[types.Part(text=args.user_prompt)]
+        )
+    ]
 
-prompt_tokens = getattr(usage, "prompt_token_count", None)
-response_tokens = getattr(usage, "candidates_token_count", None)
+    # Call Gemini
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=messages,
+    )
 
-if prompt_tokens is None or response_tokens is None:
-    raise RuntimeError(f"usage_metadata missing expected token fields: {usage}")
+    # --- Token usage ---
+    usage = response.usage_metadata
+    if usage is None:
+        raise RuntimeError("No usage_metadata on response. The API request may have failed.")
 
-print(f"Prompt tokens: {prompt_tokens}")
-print(f"Response tokens: {response_tokens}")
-print("Response:")
-print(response.text)
+    prompt_tokens = getattr(usage, "prompt_token_count", None)
+    response_tokens = getattr(usage, "candidates_token_count", None)
+
+    if prompt_tokens is None or response_tokens is None:
+        raise RuntimeError(f"usage_metadata missing expected token fields: {usage}")
+
+    # --- Output ---
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}")
+        print(f"Prompt tokens: {prompt_tokens}")
+        print(f"Response tokens: {response_tokens}")
+
+    print(response.text)
+
+
+if __name__ == "__main__":
+    main()
