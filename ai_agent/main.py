@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from prompts import system_prompt
+
 
 def main():
     # Load environment variables
@@ -30,10 +32,13 @@ def main():
         )
     ]
 
-    # Call Gemini
+    # Call Gemini with system prompt
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=messages,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt
+        ),
     )
 
     # --- Token usage ---
